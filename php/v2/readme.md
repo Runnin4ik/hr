@@ -11,10 +11,10 @@
 - Оптимизирована отправка сообщений для `Employee`
 - Использование несуществующего `$client->email` и `$client->mobile`
 - при отправке email оповещений работникам был пропущен параметр `$customerId` (вместо него стоит 5-й параметр) и не было обработки результата отправки
-- //почему-то приведение к string, хотя название говорит об другом
-  'CONSUMPTION_NUMBER' => (string)$data['consumptionNumber'],
-  'AGREEMENT_NUMBER'   => (string)$data['agreementNumber'],
-  'COMPLAINT_NUMBER'   => (string)$data['complaintNumber'],
+- //почему-то приведение к string, хотя название говорит об другом  
+  'CONSUMPTION_NUMBER' => (string)$data['consumptionNumber'],  
+  'AGREEMENT_NUMBER'   => (string)$data['agreementNumber'],  
+  'COMPLAINT_NUMBER'   => (string)$data['complaintNumber'],  
 - Переработал отправку ошибок об неправильных параметрах в Template Data, теперь возвращается информация сразу о всех неправильных
 
 Такое чувство, что в оригинале пропущена обработка для `$notificationType === self::TYPE_NEW`  
