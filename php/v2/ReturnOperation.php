@@ -1,4 +1,4 @@
-<?php /** @noinspection PhpConditionAlreadyCheckedInspection */
+<?php
 
 namespace NW\WebService\References\Operations\Notification;
 
@@ -100,7 +100,7 @@ class TsReturnOperation extends ReferencesOperation
     private function getTemplateData($data, $creator, $expert, $client, $differences): array {
         $templateData = [
             'COMPLAINT_ID'       => Validate::int($data, 'complaintId'),
-            'COMPLAINT_NUMBER'   => Validate::string($data, 'complaintNumber'),
+            'COMPLAINT_NUMBER'   => Validate::int($data, 'complaintNumber'),
             'CREATOR_ID'         => $creator->id,
             'CREATOR_NAME'       => $creator->getFullName(),
             'EXPERT_ID'          => $expert->id,
