@@ -3,54 +3,106 @@
 namespace Gateway;
 
 use PDO;
+use PDOException;
 
 class User
 {
     /**
-     * @var PDO
+     * @var User|null Экземпляр класса User
      */
-    public static $instance;
+    private static ?User $instance = null;
 
     /**
-     * Реализация singleton
-     * @return PDO
+     * @var PDO|null PDO-соединение
      */
-    public static function getInstance(): PDO
+    private ?PDO $pdo = null;
+
+    /**
+     * @var int Лимит получения пользователей
+     */
+    private int $getUsersLimit = 10;
+
+    private function __construct() {}
+    private function __clone() {}
+    private function __wakeup() {}
+
+    /**
+     * Получает лимит получения пользователей.
+     * @return int
+     */
+    public function getLimit(): int
+    {
+        return $this->getUsersLimit;
+    }
+
+    /**
+     * Устанавливает лимит получения пользователей.
+     * @param int $limit
+     * @throws \InvalidArgumentException
+     */
+    public function setLimit(int $limit): void
+    {
+        if ($limit <= 0) {
+            throw new \InvalidArgumentException('Limit must be a positive integer');
+        }
+        $this->getUsersLimit = $limit;
+    }
+
+    /**
+     * Возвращает единственный экземпляр класса User.
+     * @return User
+     */
+    public static function getInstance(): User
     {
         if (is_null(self::$instance)) {
-            $dsn = 'mysql:dbname=db;host=127.0.0.1';
-            $user = 'dbuser';
-            $password = 'dbpass';
-            self::$instance = new PDO($dsn, $user, $password);
+            self::$instance = new self();
         }
 
         return self::$instance;
     }
 
     /**
-     * Возвращает список пользователей старше заданного возраста.
-     * @param int $ageFrom
-     * @return array
+     * Возвращает PDO-соединение.
+     * @return PDO
      */
-    public static function getUsers(int $ageFrom): array
+    public function getConnection(): PDO
     {
-        $stmt = self::getInstance()->prepare("SELECT id, name, lastName, from, age, settings FROM Users WHERE age > {$ageFrom} LIMIT " . \Manager\User::limit);
-        $stmt->execute();
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $users = [];
-        foreach ($rows as $row) {
-            $settings = json_decode($row['settings']);
-            $users[] = [
-                'id' => $row['id'],
-                'name' => $row['name'],
-                'lastName' => $row['lastName'],
-                'from' => $row['from'],
-                'age' => $row['age'],
-                'key' => $settings['key'],
-            ];
+        if (is_null($this->pdo)) {
+            $dsn = 'mysql:dbname=db;host=127.0.0.1';
+            $user = 'dbuser';
+            $password = 'dbpass';
+
+            try {
+                $this->pdo = new PDO($dsn, $user, $password, [
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                ]);
+            } catch (PDOException $e) {
+                throw new \RuntimeException("Database connection error: " . $e->getMessage(), 500);
+            }
         }
 
-        return $users;
+        return $this->pdo;
+    }
+
+    /**
+     * Возвращает список пользователей старше заданного возраста.
+     * @param int $age
+     * @return array
+     */
+    public function getUsersAboveAge(int $age): array
+    {
+        //Предположил, что setting имеет тип JSON (и, следовательно, он валидный) и не нужно проверять наличие key
+        //Иначе нужно делать реализацию с проверкой наличия key и валидности json
+        $stmt = $this->getConnection()->prepare(
+            "SELECT id, name, lastName, `from`, age, setting->>'$.key' AS `key`
+                   FROM Users 
+                   WHERE age > :age 
+                   LIMIT :limit"
+        );
+        $stmt->bindValue(':age', $age);
+        $stmt->bindValue(':limit', $this->getUsersLimit);
+        return $stmt->fetchAll();
     }
 
     /**
@@ -58,19 +110,12 @@ class User
      * @param string $name
      * @return array
      */
-    public static function user(string $name): array
+    public function getUserByName(string $name): array
     {
-        $stmt = self::getInstance()->prepare("SELECT id, name, lastName, from, age, settings FROM Users WHERE name = {$name}");
-        $stmt->execute();
-        $user_by_name = $stmt->fetch(PDO::FETCH_ASSOC);
+        $stmt = $this->getConnection()->prepare("SELECT id, name, lastName, `from`, age FROM Users WHERE name = :name");
+        $stmt->execute([':name' => $name]);
 
-        return [
-            'id' => $user_by_name['id'],
-            'name' => $user_by_name['name'],
-            'lastName' => $user_by_name['lastName'],
-            'from' => $user_by_name['from'],
-            'age' => $user_by_name['age'],
-        ];
+        return $stmt->fetch() ?: [];
     }
 
     /**
@@ -78,13 +123,15 @@ class User
      * @param string $name
      * @param string $lastName
      * @param int $age
-     * @return string
+     * @return string|false
      */
-    public static function add(string $name, string $lastName, int $age): string
+    public function addUser(string $name, string $lastName, int $age): string|false
     {
-        $sth = self::getInstance()->prepare("INSERT INTO Users (name, lastName, age) VALUES (:name, :age, :lastName)");
-        $sth->execute([':name' => $name, ':age' => $age, ':lastName' => $lastName]);
+        $pdo = $this->getConnection();
+        //нет параметра `from`, потому что у него есть значение по умолчанию?
+        $stmt = $pdo->prepare("INSERT INTO Users (name, lastName, age) VALUES (:name, :lastName, :age)");
+        $stmt->execute([':name' => $name, ':lastName' => $lastName, ':age' => $age]);
 
-        return self::getInstance()->lastInsertId();
+        return $pdo->lastInsertId();
     }
 }

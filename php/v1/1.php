@@ -4,29 +4,31 @@ namespace Manager;
 
 class User
 {
-    const limit = 10;
-
     /**
      * Возвращает пользователей старше заданного возраста.
-     * @param int $ageFrom
+     * @param int $age
      * @return array
      */
-    function getUsers(int $ageFrom): array
+    public static function getUsersAboveAge(int $age): array
     {
-        $ageFrom = (int)trim($ageFrom);
-
-        return \Gateway\User::getUsers($ageFrom);
+        $userInstance = \Gateway\User::getInstance();
+        $userInstance->setLimit(10);
+        return $userInstance->getUsersAboveAge($age);
     }
 
     /**
      * Возвращает пользователей по списку имен.
      * @return array
+     * @throws \InvalidArgumentException
      */
-    public static function getByNames(): array
+    public static function getUsersByNames(): array
     {
+        if (!isset($_GET['names']) || !is_array($_GET['names'])) {
+            throw new \InvalidArgumentException('Invalid or missing "names" parameter.');
+        }
         $users = [];
         foreach ($_GET['names'] as $name) {
-            $users[] = \Gateway\User::user($name);
+            $users[] = \Gateway\User::getInstance()->getUserByName($name);
         }
 
         return $users;
@@ -36,21 +38,27 @@ class User
      * Добавляет пользователей в базу данных.
      * @param $users
      * @return array
+     * @throws \InvalidArgumentException|\Exception
      */
-    public function users($users): array
+    public static function addUsers($users): array
     {
-        $ids = [];
-        \Gateway\User::getInstance()->beginTransaction();
-        foreach ($users as $user) {
-            try {
-                \Gateway\User::add($user['name'], $user['lastName'], $user['age']);
-                \Gateway\User::getInstance()->commit();
-                $ids[] = \Gateway\User::getInstance()->lastInsertId();
-            } catch (\Exception $e) {
-                \Gateway\User::getInstance()->rollBack();
+        $userIds = [];
+        $userInstance = \Gateway\User::getInstance();
+        $pdo = $userInstance->getConnection();
+        $pdo->beginTransaction();
+        try {
+            foreach ($users as $user) {
+                if (!isset($user['name'], $user['lastName'], $user['age'])) {
+                    throw new \InvalidArgumentException('User data is incomplete.');
+                }
+                $userIds[] = $userInstance->addUser($user['name'], $user['lastName'], $user['age']);
             }
+            $pdo->commit();
+        } catch (\Exception $e) {
+            $pdo->rollBack();
+            throw $e;
         }
 
-        return $ids;
+        return $userIds;
     }
 }
