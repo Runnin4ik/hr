@@ -12,6 +12,10 @@ class Contractor
     public $type;
     public $name;
 
+    public $email;
+
+    public $mobile;
+
     public static function getById(int $resellerId): self
     {
         return new self($resellerId); // fakes the getById method
@@ -22,6 +26,8 @@ class Contractor
         return $this->name . ' ' . $this->id;
     }
 }
+
+
 
 class Seller extends Contractor
 {
@@ -37,13 +43,13 @@ class Status
 
     public static function getName(int $id): string
     {
-        $a = [
+        $statusList = [
             0 => 'Completed',
             1 => 'Pending',
             2 => 'Rejected',
         ];
 
-        return $a[$id];
+        return $statusList[$id];
     }
 }
 
@@ -53,16 +59,16 @@ abstract class ReferencesOperation
 
     public function getRequest($pName)
     {
-        return $_REQUEST[$pName];
+        return $_REQUEST[$pName] ?? [];
     }
 }
 
-function getResellerEmailFrom()
+function getResellerEmailFrom($resellerId)
 {
     return 'contractor@example.com';
 }
 
-function getEmailsByPermit($resellerId, $event)
+function getEmployeeEmailsByReseller($resellerId, $event)
 {
     // fakes the method
     return ['someemeil@example.com', 'someemeil2@example.com'];
@@ -92,13 +98,14 @@ class NotificationManager
 
 class MessagesClient
 {
-    static function sendMessage(
-        $sendMessages,
-        $resellerId = 0,
-        $customerId = 0,
-        $notificationEvent = 0,
-        $notificationSubEvent = ''
+    public static function sendMessages(
+        $messages,
+        $resellerId,
+        $customerId,
+        $notificationEvent,
+        $notificationSubEvent = null
     ) {
-        return '';
+        // fakes the method
+        return true;
     }
 }
